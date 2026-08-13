@@ -78,13 +78,18 @@ sudo ./adicionar-swap.sh
 
 ### `instalar-docker.sh`
 
-Instala o Docker Engine, CLI, containerd, Buildx e Docker Compose (plugin) a partir do **repositório oficial do Docker**. Remove pacotes antigos/conflitantes (`docker.io`, `podman-docker` etc.), habilita o serviço no boot e adiciona o usuário que executou o script ao grupo `docker`.
+Instala o Docker Engine, CLI, containerd, Buildx e Docker Compose (plugin) a partir do **repositório oficial do Docker**. Remove pacotes antigos/conflitantes (`docker.io`, `podman-docker` etc.) e habilita o serviço no boot.
+
+Sobre o grupo `docker` (que permite usar o Docker sem `sudo`):
+
+- Se executado via `sudo` por um usuário comum, esse usuário é adicionado ao grupo automaticamente;
+- Se executado como `root` direto, o script pergunta qual usuário adicionar (pode pular deixando em branco).
 
 ```bash
 sudo ./instalar-docker.sh
 ```
 
-> Para usar `docker` sem `sudo`, saia e entre novamente na sessão (ou rode `newgrp docker`).
+> A permissão do grupo só vale em sessões novas: o usuário precisa sair e entrar novamente (ou rodar `newgrp docker` no terminal atual).
 
 ### `instalar-node.sh`
 

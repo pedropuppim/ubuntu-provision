@@ -17,12 +17,6 @@ fi
 # Usuário real que invocou o script (mesmo rodando com sudo)
 USUARIO="${SUDO_USER:-$USER}"
 
-if [[ "$USUARIO" == "root" ]]; then
-    echo "Aviso: script executado diretamente como root; nenhum usuário comum será adicionado ao grupo docker."
-fi
-
-echo ">>> Instalando Docker para o usuário: $USUARIO"
-
 # --- Remove versões antigas/conflitantes -------------------------------------
 
 echo ">>> Removendo pacotes antigos (se existirem)..."
@@ -58,11 +52,29 @@ apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin do
 echo ">>> Habilitando serviço do Docker..."
 systemctl enable --now docker
 
-# --- Adiciona o usuário ao grupo docker ---------------------------------------
+# --- Adiciona usuário ao grupo docker -----------------------------------------
+
+USUARIO_DOCKER=""
 
 if [[ "$USUARIO" != "root" ]]; then
-    echo ">>> Adicionando '$USUARIO' ao grupo docker..."
-    usermod -aG docker "$USUARIO"
+    # Rodou com sudo a partir de um usuário comum: usa esse usuário
+    USUARIO_DOCKER="$USUARIO"
+else
+    # Rodou como root direto: pergunta qual usuário adicionar
+    read -rp "Deseja adicionar algum usuário ao grupo docker? (nome do usuário, vazio para pular): " RESPOSTA
+    if [[ -n "$RESPOSTA" && "$RESPOSTA" != "root" ]]; then
+        if id "$RESPOSTA" >/dev/null 2>&1; then
+            USUARIO_DOCKER="$RESPOSTA"
+        else
+            echo "Aviso: usuário '$RESPOSTA' não existe; ninguém foi adicionado ao grupo docker." >&2
+            echo "       Depois de criá-lo, rode: sudo usermod -aG docker $RESPOSTA" >&2
+        fi
+    fi
+fi
+
+if [[ -n "$USUARIO_DOCKER" ]]; then
+    echo ">>> Adicionando '$USUARIO_DOCKER' ao grupo docker..."
+    usermod -aG docker "$USUARIO_DOCKER"
 fi
 
 # --- Verificação final ---------------------------------------------------------
@@ -74,7 +86,8 @@ docker compose version
 
 echo ""
 echo "✅ Instalação concluída!"
-if [[ "$USUARIO" != "root" ]]; then
-    echo "⚠️  Para usar o docker sem sudo, saia e entre novamente na sessão"
-    echo "    (ou execute: newgrp docker)"
+if [[ -n "$USUARIO_DOCKER" ]]; then
+    echo "⚠️  A permissão do grupo docker só vale em sessões novas."
+    echo "    '$USUARIO_DOCKER' deve sair e entrar novamente na sessão,"
+    echo "    ou executar 'newgrp docker' no terminal atual."
 fi
