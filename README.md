@@ -1,6 +1,6 @@
 # ubuntu-provision
 
-Scripts para provisionamento e configuração inicial de servidores **Ubuntu 24.04**: utilitários básicos, Docker, Node.js, swap, usuários, hardening de SSH e firewall.
+Scripts para provisionamento e configuração inicial de servidores **Ubuntu 24.04**: utilitários básicos, Docker, Node.js, swap, usuários, hardening de SSH, firewall, timezone/NTP, atualizações automáticas de segurança, Certbot (Let's Encrypt), limpeza de disco e diagnóstico do servidor.
 
 ## Propósito
 
@@ -32,10 +32,12 @@ chmod +x *.sh
 
 ```bash
 sudo ./instalar-utilitarios.sh
+sudo ./configurar-relogio.sh America/Sao_Paulo
 sudo ./adicionar-usuario.sh <usuario>
 sudo ./adicionar-swap.sh 4
 sudo ./instalar-docker.sh
 sudo ./instalar-node.sh
+sudo ./atualizacoes-automaticas.sh
 sudo ./configura-ssh.sh
 sudo ./firewall.sh 22022,80,443
 ```
@@ -128,6 +130,56 @@ sudo ./firewall.sh "22022 80 443"      # também aceita separado por espaço
 ```
 
 > ⚠️ O script **reseta** todas as regras existentes do ufw antes de aplicar as novas.
+
+### `configurar-relogio.sh`
+
+Configura o **timezone** (padrão sugerido: `America/Sao_Paulo`), ativa a sincronização de horário via **NTP** (`systemd-timesyncd`) e, opcionalmente, gera o locale `pt_BR.UTF-8` definindo-o como padrão do sistema.
+
+```bash
+sudo ./configurar-relogio.sh America/Sao_Paulo
+# ou sem argumento, para informar o timezone interativamente:
+sudo ./configurar-relogio.sh
+```
+
+> Em containers (LXC/Docker) o relógio vem do host — o NTP deve ser configurado lá.
+
+### `atualizacoes-automaticas.sh`
+
+Configura o **unattended-upgrades** para aplicar patches de segurança do Ubuntu automaticamente todos os dias, removendo dependências órfãs após as atualizações. Pergunta se o servidor deve reiniciar sozinho quando uma atualização exigir reboot (e em qual horário, padrão 04:00).
+
+```bash
+sudo ./atualizacoes-automaticas.sh
+```
+
+> Logs em `/var/log/unattended-upgrades/`. Sem reboot automático, reinicie manualmente quando o arquivo `/var/run/reboot-required` existir.
+
+### `instalar-certbot.sh`
+
+Instala o **Certbot** (Let's Encrypt) com o plugin do servidor web detectado (**nginx** ou **apache**). Se nenhum dos dois estiver instalado, oferece instalar o nginx. Se o ufw estiver ativo com 80/443 bloqueadas, oferece liberá-las (a porta 80 é necessária para emitir/renovar certificados). A renovação automática fica ativa via `certbot.timer`, e ao final o script oferece emitir um certificado na hora.
+
+```bash
+sudo ./instalar-certbot.sh
+```
+
+> Para emitir depois: `sudo certbot --nginx -d seu-dominio.com`
+> Teste de renovação: `sudo certbot renew --dry-run`
+
+### `limpeza.sh`
+
+Manutenção de espaço em disco: `apt autoremove --purge` + limpeza do cache do apt, redução dos logs do journald para 200M (opcional) e `docker system prune` (opcional, se o Docker estiver instalado). Ao final mostra quanto espaço foi liberado.
+
+```bash
+sudo ./limpeza.sh
+```
+
+### `info-servidor.sh`
+
+Mostra um resumo do estado do servidor: sistema, CPU, memória, swap, disco, rede, portas escutando, firewall, configuração do SSH, Docker (com containers rodando), Node.js e atualizações pendentes. **Somente leitura** — não altera nada e não exige root (com `sudo`, mostra também o status do ufw e os processos das portas).
+
+```bash
+./info-servidor.sh
+sudo ./info-servidor.sh
+```
 
 ---
 
