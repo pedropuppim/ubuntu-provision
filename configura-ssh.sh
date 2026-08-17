@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 #
 # configura-ssh.sh — Configura o SSH do Ubuntu para:
-#   - Escutar na porta 22022
+#   - Escutar na porta escolhida pelo usuário (padrão: 22022)
 #   - Não permitir login como root
 #
 # Uso: sudo ./configura-ssh.sh
 #
 set -euo pipefail
 
-PORTA=22022
 DROPIN=/etc/ssh/sshd_config.d/99-hardening.conf
 
 # ---------------------------------------------------------------------------
@@ -24,6 +23,18 @@ if ! command -v sshd >/dev/null 2>&1; then
     apt-get update -qq
     apt-get install -y openssh-server
 fi
+
+# ---------------------------------------------------------------------------
+# Pergunta a porta desejada
+# ---------------------------------------------------------------------------
+while true; do
+    read -rp "Qual porta o SSH deve usar? [22022]: " PORTA
+    PORTA=${PORTA:-22022}
+    if [[ "$PORTA" =~ ^[0-9]+$ ]] && (( PORTA >= 1 && PORTA <= 65535 )); then
+        break
+    fi
+    echo "Porta inválida: informe um número entre 1 e 65535." >&2
+done
 
 # ---------------------------------------------------------------------------
 # Backup da configuração atual

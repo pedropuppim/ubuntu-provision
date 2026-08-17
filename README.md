@@ -42,7 +42,7 @@ sudo ./configura-ssh.sh
 sudo ./firewall.sh 22022,80,443
 ```
 
-⚠️ **Atenção à ordem de SSH + firewall:** o `configura-ssh.sh` muda a porta do SSH para `22022`. Ao rodar o `firewall.sh` depois, libere a porta **22022** (e não a 22), senão você perde o acesso remoto.
+⚠️ **Atenção à ordem de SSH + firewall:** o `configura-ssh.sh` muda a porta do SSH (padrão `22022`). Ao rodar o `firewall.sh` depois, libere a **porta escolhida** (e não a 22), senão você perde o acesso remoto.
 
 ---
 
@@ -105,7 +105,7 @@ sudo ./instalar-node.sh
 
 Hardening do SSH:
 
-- Muda a porta para **22022**;
+- Pergunta qual porta o SSH deve usar (padrão: **22022**);
 - Bloqueia login como **root** (`PermitRootLogin no`).
 
 A configuração é feita via drop-in em `/etc/ssh/sshd_config.d/99-hardening.conf`, com backup do `sshd_config` original. O script valida a configuração (`sshd -t`) antes de aplicar, desativa o `ssh.socket` (que ignoraria a porta configurada no Ubuntu 22.10+) e, se o `ufw` estiver ativo, já libera a porta nova no firewall.
@@ -115,7 +115,7 @@ sudo ./configura-ssh.sh
 ```
 
 > ⚠️ **Não feche a sessão atual** após rodar. Teste antes em outro terminal:
-> `ssh -p 22022 usuario@ip-do-servidor`
+> `ssh -p <porta-escolhida> usuario@ip-do-servidor`
 > A porta 22 não é removida do ufw automaticamente — remova depois de confirmar o acesso:
 > `sudo ufw delete allow 22/tcp`
 
