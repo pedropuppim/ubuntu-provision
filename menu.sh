@@ -72,6 +72,8 @@ while true; do
   foi_executado "ssh"                 && status_9="[OK]" || status_9="[  ]"
   foi_executado "firewall"            && status_10="[OK]" || status_10="[  ]"
   foi_executado "ip_fixo"             && status_11="[OK]" || status_11="[  ]"
+  foi_executado "fail2ban"            && status_12="[OK]" || status_12="[  ]"
+  foi_executado "nginx"               && status_13="[OK]" || status_13="[  ]"
 
   echo " $status_0 0) Atualizar Sistema e Scripts (APT & GitHub)"
   echo " $status_1 1) Instalar Utilitários"
@@ -85,6 +87,8 @@ while true; do
   echo " $status_9 9) Configurar Segurança do SSH"
   echo " $status_10 10) Configurar Firewall (UFW)"
   echo " $status_11 11) Configurar IP Fixo (Netplan)"
+  echo " $status_12 12) Instalar Fail2ban (proteção SSH)"
+  echo " $status_13 13) Instalar Nginx (servidor web)"
   echo "--------------------------------------------------"
   echo "      🛠️  Ferramentas de Apoio e Manutenção:"
   echo "      L) Executar Limpeza de Disco (limpeza.sh)"
@@ -238,6 +242,24 @@ while true; do
       read -r -p "Pressione Enter para continuar..."
       ;;
 
+    12)
+      if foi_executado "fail2ban"; then
+        read -r -p "[!] Passo já executado. Executar novamente mesmo assim? (s/N): " RESP
+        [[ ! "${RESP,,}" =~ ^s$ ]] && continue
+      fi
+      executar_script "instalar-fail2ban.sh" "fail2ban"
+      read -r -p "Pressione Enter para continuar..."
+      ;;
+
+    13)
+      if foi_executado "nginx"; then
+        read -r -p "[!] Passo já executado. Executar novamente mesmo assim? (s/N): " RESP
+        [[ ! "${RESP,,}" =~ ^s$ ]] && continue
+      fi
+      executar_script "instalar-nginx.sh" "nginx"
+      read -r -p "Pressione Enter para continuar..."
+      ;;
+
     l)
       echo "[+] Executando rotina de limpeza de disco..."
       executar_script "limpeza.sh" "limpeza_temp"
@@ -253,7 +275,19 @@ while true; do
     u)
       echo "[+] Atualizando repositório dos scripts (git pull)..."
       if [ -d ".git" ]; then
-        if git pull origin master || git pull origin main; then
+        git fetch origin 2>/dev/null || true
+        BRANCH_PADRAO=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||')
+        BRANCH_PADRAO=${BRANCH_PADRAO:-master}
+        BRANCH_ATUAL=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+        if [ -n "$BRANCH_ATUAL" ] && [ "$BRANCH_ATUAL" != "$BRANCH_PADRAO" ]; then
+          echo "[!] Branch atual é '$BRANCH_ATUAL'. Mudando para '$BRANCH_PADRAO'..."
+          if ! git checkout "$BRANCH_PADRAO"; then
+            echo "[-] Não foi possível mudar para a branch '$BRANCH_PADRAO'. Verifique alterações locais."
+            read -r -p "Pressione Enter para continuar..."
+            continue
+          fi
+        fi
+        if git pull origin "$BRANCH_PADRAO"; then
           chmod +x *.sh 2>/dev/null || true
           echo "[+] Repositório atualizado com sucesso!"
         else
@@ -278,7 +312,7 @@ while true; do
       
       if ! foi_executado "atualizacao_sistema"; then
         echo -e "\n${AMARELO}--------------------------------------------------"${RESET}
-        echo -e "${AMARELO}[PASSO 0/11] Atualizando Pacotes do Sistema (APT)..."${RESET}
+        echo -e "${AMARELO}[PASSO 0/13] Atualizando Pacotes do Sistema (APT)..."${RESET}
         echo -e "${AMARELO}--------------------------------------------------"${RESET}
         if apt-get update && apt-get upgrade -y && apt-get full-upgrade -y; then
           marcar_concluido "atualizacao_sistema"
@@ -288,7 +322,7 @@ while true; do
 
       if ! foi_executado "utilitarios"; then
         echo -e "\n${AMARELO}--------------------------------------------------"${RESET}
-        echo -e "${AMARELO}[PASSO 1/11] Instalando Utilitários do Sistema..."${RESET}
+        echo -e "${AMARELO}[PASSO 1/13] Instalando Utilitários do Sistema..."${RESET}
         echo -e "${AMARELO}--------------------------------------------------"${RESET}
         executar_script_isolado "instalar-utilitarios.sh" "utilitarios"
         echo -e "${VERDE}[✓] Passo 1 (Utilitários) concluído!${RESET}"
@@ -296,7 +330,7 @@ while true; do
 
       if ! foi_executado "relogio"; then
         echo -e "\n${AMARELO}--------------------------------------------------"${RESET}
-        echo -e "${AMARELO}[PASSO 2/11] Configurando Fuso Horário (Relógio)..."${RESET}
+        echo -e "${AMARELO}[PASSO 2/13] Configurando Fuso Horário (Relógio)..."${RESET}
         echo -e "${AMARELO}--------------------------------------------------"${RESET}
         read -r -p "Fuso horário [Padrão: America/Sao_Paulo]: " FUSO_ALL
         FUSO_ALL=${FUSO_ALL:-America/Sao_Paulo}
@@ -306,7 +340,7 @@ while true; do
 
       if ! foi_executado "usuario"; then
         echo -e "\n${AMARELO}--------------------------------------------------"${RESET}
-        echo -e "${AMARELO}[PASSO 3/11] Adicionando Novo Usuário..."${RESET}
+        echo -e "${AMARELO}[PASSO 3/13] Adicionando Novo Usuário..."${RESET}
         echo -e "${AMARELO}--------------------------------------------------"${RESET}
         read -r -p "Informe o nome do novo usuário: " USUARIO_ALL
         if [ -n "$USUARIO_ALL" ]; then
@@ -317,7 +351,7 @@ while true; do
 
       if ! foi_executado "swap"; then
         echo -e "\n${AMARELO}--------------------------------------------------"${RESET}
-        echo -e "${AMARELO}[PASSO 4/11] Criando/Configurando SWAP..."${RESET}
+        echo -e "${AMARELO}[PASSO 4/13] Criando/Configurando SWAP..."${RESET}
         echo -e "${AMARELO}--------------------------------------------------"${RESET}
         read -r -p "Tamanho SWAP em GB [Padrão: 4]: " SWAP_ALL
         SWAP_ALL=${SWAP_ALL:-4}
@@ -327,7 +361,7 @@ while true; do
 
       if ! foi_executado "docker"; then
         echo -e "\n${AMARELO}--------------------------------------------------"${RESET}
-        echo -e "${AMARELO}[PASSO 5/11] Instalando Docker e Docker Compose..."${RESET}
+        echo -e "${AMARELO}[PASSO 5/13] Instalando Docker e Docker Compose..."${RESET}
         echo -e "${AMARELO}--------------------------------------------------"${RESET}
         executar_script_isolado "instalar-docker.sh" "docker"
         echo -e "${VERDE}[✓] Passo 5 (Docker) concluído!${RESET}"
@@ -335,7 +369,7 @@ while true; do
 
       if ! foi_executado "node"; then
         echo -e "\n${AMARELO}--------------------------------------------------"${RESET}
-        echo -e "${AMARELO}[PASSO 6/11] Instalando Node.js..."${RESET}
+        echo -e "${AMARELO}[PASSO 6/13] Instalando Node.js..."${RESET}
         echo -e "${AMARELO}--------------------------------------------------"${RESET}
         executar_script_isolado "instalar-node.sh" "node"
         echo -e "${VERDE}[✓] Passo 6 (Node.js) concluído!${RESET}"
@@ -343,7 +377,7 @@ while true; do
 
       if ! foi_executado "certbot"; then
         echo -e "\n${AMARELO}--------------------------------------------------"${RESET}
-        echo -e "${AMARELO}[PASSO 7/11] Instalando Certbot (SSL / Let's Encrypt)..."${RESET}
+        echo -e "${AMARELO}[PASSO 7/13] Instalando Certbot (SSL / Let's Encrypt)..."${RESET}
         echo -e "${AMARELO}--------------------------------------------------"${RESET}
         executar_script_isolado "instalar-certbot.sh" "certbot"
         echo -e "${VERDE}[✓] Passo 7 (Certbot) concluído!${RESET}"
@@ -351,7 +385,7 @@ while true; do
 
       if ! foi_executado "atualizacoes"; then
         echo -e "\n${AMARELO}--------------------------------------------------"${RESET}
-        echo -e "${AMARELO}[PASSO 8/11] Ativando Atualizações Automáticas..."${RESET}
+        echo -e "${AMARELO}[PASSO 8/13] Ativando Atualizações Automáticas..."${RESET}
         echo -e "${AMARELO}--------------------------------------------------"${RESET}
         executar_script_isolado "atualizacoes-automaticas.sh" "atualizacoes"
         echo -e "${VERDE}[✓] Passo 8 (Atualizações Automáticas) concluído!${RESET}"
@@ -359,7 +393,7 @@ while true; do
 
       if ! foi_executado "ssh"; then
         echo -e "\n${AMARELO}--------------------------------------------------"${RESET}
-        echo -e "${AMARELO}[PASSO 9/11] Configurando Segurança do SSH..."${RESET}
+        echo -e "${AMARELO}[PASSO 9/13] Configurando Segurança do SSH..."${RESET}
         echo -e "${AMARELO}--------------------------------------------------"${RESET}
         executar_script_isolado "configura-ssh.sh" "ssh"
         echo -e "${VERDE}[✓] Passo 9 (SSH) concluído!${RESET}"
@@ -367,7 +401,7 @@ while true; do
 
       if ! foi_executado "firewall"; then
         echo -e "\n${AMARELO}--------------------------------------------------"${RESET}
-        echo -e "${AMARELO}[PASSO 10/11] Configurando Firewall (UFW)..."${RESET}
+        echo -e "${AMARELO}[PASSO 10/13] Configurando Firewall (UFW)..."${RESET}
         echo -e "${AMARELO}--------------------------------------------------"${RESET}
         read -r -p "Portas do Firewall [Padrão: 22022,80,443]: " PORTAS_ALL
         PORTAS_ALL=${PORTAS_ALL:-22022,80,443}
@@ -377,10 +411,26 @@ while true; do
 
       if ! foi_executado "ip_fixo"; then
         echo -e "\n${AMARELO}--------------------------------------------------"${RESET}
-        echo -e "${AMARELO}[PASSO 11/11] Configurando IP Fixo (Netplan)..."${RESET}
+        echo -e "${AMARELO}[PASSO 11/13] Configurando IP Fixo (Netplan)..."${RESET}
         echo -e "${AMARELO}--------------------------------------------------"${RESET}
         executar_script_isolado "configurar-ip-fixo.sh" "ip_fixo"
         echo -e "${VERDE}[✓] Passo 11 (IP Fixo) concluído!${RESET}"
+      fi
+
+      if ! foi_executado "fail2ban"; then
+        echo -e "\n${AMARELO}--------------------------------------------------"${RESET}
+        echo -e "${AMARELO}[PASSO 12/13] Instalando Fail2ban (proteção SSH)..."${RESET}
+        echo -e "${AMARELO}--------------------------------------------------"${RESET}
+        executar_script_isolado "instalar-fail2ban.sh" "fail2ban"
+        echo -e "${VERDE}[✓] Passo 12 (Fail2ban) concluído!${RESET}"
+      fi
+
+      if ! foi_executado "nginx"; then
+        echo -e "\n${AMARELO}--------------------------------------------------"${RESET}
+        echo -e "${AMARELO}[PASSO 13/13] Instalando Nginx (servidor web)..."${RESET}
+        echo -e "${AMARELO}--------------------------------------------------"${RESET}
+        executar_script_isolado "instalar-nginx.sh" "nginx"
+        echo -e "${VERDE}[✓] Passo 13 (Nginx) concluído!${RESET}"
       fi
 
       echo -e "\n${VERDE}=================================================="${RESET}

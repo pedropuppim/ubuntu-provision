@@ -1,6 +1,6 @@
 # ubuntu-provision
 
-Scripts para provisionamento e configuração inicial de servidores **Ubuntu 24.04**: utilitários básicos, Docker, Node.js, swap, usuários, hardening de SSH, firewall, timezone/NTP, atualizações automáticas de segurança, Certbot (Let's Encrypt), limpeza de disco e diagnóstico do servidor.
+Scripts para provisionamento e configuração inicial de servidores **Ubuntu 24.04**: utilitários básicos, Docker, Node.js, swap, usuários, hardening de SSH, firewall, fail2ban, nginx, timezone/NTP, atualizações automáticas de segurança, Certbot (Let's Encrypt), limpeza de disco e diagnóstico do servidor.
 
 ## Propósito
 
@@ -163,6 +163,25 @@ sudo ./instalar-certbot.sh
 
 > Para emitir depois: `sudo certbot --nginx -d seu-dominio.com`
 > Teste de renovação: `sudo certbot renew --dry-run`
+
+### `instalar-fail2ban.sh`
+
+Instala e configura o **fail2ban** com jail para o SSH. Detecta automaticamente a(s) porta(s) do sshd (incluindo portas customizadas), pergunta os parâmetros de banimento (tentativas, duração, janela de detecção) e gera `/etc/fail2ban/jail.local` com `backend = systemd` (necessário no Ubuntu 24.04, que usa journald). Faz backup de um `jail.local` existente antes de sobrescrever.
+
+```bash
+sudo ./instalar-fail2ban.sh
+```
+
+> Ver banidos: `sudo fail2ban-client status sshd`
+> Desbanir IP: `sudo fail2ban-client set sshd unbanip <IP>`
+
+### `instalar-nginx.sh`
+
+Instala o **nginx**, habilita o serviço na inicialização e, se o ufw estiver ativo com 80/443 bloqueadas, oferece liberá-las. Para HTTPS, use em seguida o `instalar-certbot.sh`.
+
+```bash
+sudo ./instalar-nginx.sh
+```
 
 ### `limpeza.sh`
 

@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -euo pipefail
+
 if [ "$EUID" -ne 0 ]; then
   echo "[-] Por favor, execute este script com privilégios de root (ex: sudo ./configurar-ip-fixo.sh)"
   exit 1
@@ -43,6 +45,7 @@ echo "[+] Coletando informações atuais da interface $NET_IFACE via DHCP..."
 NET_IP_CIDR_DHCP=$(ip -4 addr show "$NET_IFACE" 2>/dev/null | grep -oP '(?<=inet\s)\d+(\.\d+){3}/\d+' | head -n 1)
 NET_GATEWAY_DHCP=$(ip route show dev "$NET_IFACE" default 2>/dev/null | grep -oP '(?<=via\s)\d+(\.\d+){3}' | head -n 1)
 
+NET_DNS_DHCP=""
 if command -v resolvectl &>/dev/null; then
   NET_DNS_DHCP=$(resolvectl status "$NET_IFACE" 2>/dev/null | awk '/DNS Servers:/ { $1=$2=""; print $0}' | xargs | tr ' ' ',')
 elif command -v systemd-resolve &>/dev/null; then
@@ -155,7 +158,7 @@ if netplan apply; then
   exit 0
 else
   echo "[-] Erro ao aplicar as configurações do Netplan. Restaurando backup..."
-  cp "$BACKUP_DIR"/* "$NETPLAN_DIR/" 2>/dev/null
-  netplan apply
+  cp "$BACKUP_DIR"/* "$NETPLAN_DIR/" 2>/dev/null || true
+  netplan apply || true
   exit 1
 fi
