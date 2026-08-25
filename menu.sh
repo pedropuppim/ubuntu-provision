@@ -89,6 +89,7 @@ while true; do
   echo "      🛠️  Ferramentas de Apoio e Manutenção:"
   echo "      L) Executar Limpeza de Disco (limpeza.sh)"
   echo "      I) Exibir Resumo / Info do Servidor (info-servidor.sh)"
+  echo "      U) Atualizar Repositório dos Scripts (git pull)"
   echo "--------------------------------------------------"
   echo "      A) Executar TODOS os passos pendentes de instalação"
   echo "      R) Resetar status dos procedimentos"
@@ -246,6 +247,21 @@ while true; do
     i)
       echo "[+] Coletando e exibindo informações do servidor..."
       executar_script "info-servidor.sh" "info_temp"
+      read -r -p "Pressione Enter para continuar..."
+      ;;
+
+    u)
+      echo "[+] Atualizando repositório dos scripts (git pull)..."
+      if [ -d ".git" ]; then
+        if git pull origin master || git pull origin main; then
+          chmod +x *.sh 2>/dev/null || true
+          echo "[+] Repositório atualizado com sucesso!"
+        else
+          echo "[-] Falha ao atualizar o repositório. Verifique a conexão ou conflitos locais."
+        fi
+      else
+        echo "[-] Repositório git local não detectado neste diretório."
+      fi
       read -r -p "Pressione Enter para continuar..."
       ;;
 
