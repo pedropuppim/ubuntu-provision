@@ -40,10 +40,39 @@ for porta in "${PORTAS[@]}"; do
     fi
 done
 
-# Avisa se o SSH (22) não está na lista — risco de perder acesso remoto
-if [[ ! " ${PORTAS[*]} " =~ " 22 " ]]; then
-    echo "AVISO: a porta 22 (SSH) NÃO está na lista de liberadas." >&2
-    echo "       Se este for um servidor remoto, você pode perder o acesso." >&2
+# --- Detecta porta(s) do SSH ativo e avisa se alguma ficaria bloqueada --------
+
+SSH_PORTAS=()
+if pgrep -x sshd >/dev/null 2>&1; then
+    # Portas em que o sshd está escutando (funciona com IPv4 e IPv6)
+    mapfile -t SSH_PORTAS < <(ss -tlnp 2>/dev/null | awk '/sshd/ {n=split($4,a,":"); print a[n]}' | sort -un)
+    # Fallback: configuração do sshd
+    if [[ ${#SSH_PORTAS[@]} -eq 0 ]]; then
+        mapfile -t SSH_PORTAS < <(sshd -T 2>/dev/null | awk '$1=="port"{print $2}' | sort -un)
+    fi
+    # Último recurso: assume a porta padrão
+    if [[ ${#SSH_PORTAS[@]} -eq 0 ]]; then
+        SSH_PORTAS=(22)
+    fi
+fi
+
+SSH_BLOQUEADAS=()
+for ssh_porta in "${SSH_PORTAS[@]}"; do
+    if [[ " ${PORTAS[*]} " != *" $ssh_porta "* ]]; then
+        SSH_BLOQUEADAS+=("$ssh_porta")
+    fi
+done
+
+if [[ ${#SSH_BLOQUEADAS[@]} -gt 0 ]]; then
+    echo "⚠️  AVISO: SSH está ATIVO na(s) porta(s) ${SSH_BLOQUEADAS[*]}, que NÃO está(ão) na lista de liberadas." >&2
+    echo "   Se este for um servidor remoto, você vai PERDER o acesso SSH." >&2
+    if [[ $DRY_RUN -eq 0 ]]; then
+        read -rp "   Continuar mesmo assim e bloquear a(s) porta(s) do SSH? [s/N] " RESPOSTA
+        if [[ "${RESPOSTA,,}" != "s" ]]; then
+            echo "Abortado. Nenhuma regra foi alterada."
+            exit 1
+        fi
+    fi
 fi
 
 run() {

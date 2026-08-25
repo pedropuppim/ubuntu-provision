@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #
-# Cria um novo usuário no Ubuntu e o adiciona ao grupo sudo.
+# Cria um novo usuário no Ubuntu e, opcionalmente, o adiciona aos grupos
+# sudo e docker (perguntando interativamente).
 #
 # Uso: sudo ./adicionar-usuario.sh <nome-do-usuario>
 #      (se o nome for omitido, o script pergunta interativamente)
@@ -39,14 +40,18 @@ fi
 echo ">>> Criando usuário '$NOVO_USUARIO'..."
 adduser --gecos "" "$NOVO_USUARIO"
 
-# --- Adiciona ao grupo sudo --------------------------------------------------
+# --- Grupo sudo (opcional) ---------------------------------------------------
 
-echo ">>> Adicionando '$NOVO_USUARIO' ao grupo sudo..."
-usermod -aG sudo "$NOVO_USUARIO"
+read -rp "Adicionar '$NOVO_USUARIO' ao grupo sudo? [s/N] " RESPOSTA
+if [[ "${RESPOSTA,,}" == "s" ]]; then
+    usermod -aG sudo "$NOVO_USUARIO"
+    echo ">>> '$NOVO_USUARIO' adicionado ao grupo sudo."
+fi
 
-# Se o grupo docker existir, oferece adicionar também
+# --- Grupo docker (opcional) -------------------------------------------------
+
 if getent group docker >/dev/null 2>&1; then
-    read -rp "Adicionar '$NOVO_USUARIO' também ao grupo docker? [s/N] " RESPOSTA
+    read -rp "Adicionar '$NOVO_USUARIO' ao grupo docker? [s/N] " RESPOSTA
     if [[ "${RESPOSTA,,}" == "s" ]]; then
         usermod -aG docker "$NOVO_USUARIO"
         echo ">>> '$NOVO_USUARIO' adicionado ao grupo docker."
@@ -60,5 +65,5 @@ echo ">>> Grupos de '$NOVO_USUARIO':"
 id -nG "$NOVO_USUARIO"
 
 echo ""
-echo "✅ Usuário '$NOVO_USUARIO' criado com acesso sudo!"
-echo "   Para testar: su - $NOVO_USUARIO && sudo whoami"
+echo "✅ Usuário '$NOVO_USUARIO' criado!"
+echo "   Para testar: su - $NOVO_USUARIO"

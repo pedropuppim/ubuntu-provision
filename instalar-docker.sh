@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Instala Docker Engine + Docker Compose (plugin) no Ubuntu 24.04
-# e adiciona o usuário que executou o script ao grupo docker.
+# e, opcionalmente, adiciona um usuário ao grupo docker (perguntando).
 #
 # Uso: sudo ./instalar-docker.sh
 
@@ -52,23 +52,32 @@ apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin do
 echo ">>> Habilitando serviço do Docker..."
 systemctl enable --now docker
 
-# --- Adiciona usuário ao grupo docker -----------------------------------------
+# --- Adiciona usuário ao grupo docker (opcional) -------------------------------
 
 USUARIO_DOCKER=""
 
-if [[ "$USUARIO" != "root" ]]; then
-    # Rodou com sudo a partir de um usuário comum: usa esse usuário
-    USUARIO_DOCKER="$USUARIO"
-else
-    # Rodou como root direto: pergunta qual usuário adicionar
-    read -rp "Deseja adicionar algum usuário ao grupo docker? (nome do usuário, vazio para pular): " RESPOSTA
-    if [[ -n "$RESPOSTA" && "$RESPOSTA" != "root" ]]; then
-        if id "$RESPOSTA" >/dev/null 2>&1; then
-            USUARIO_DOCKER="$RESPOSTA"
-        else
-            echo "Aviso: usuário '$RESPOSTA' não existe; ninguém foi adicionado ao grupo docker." >&2
-            echo "       Depois de criá-lo, rode: sudo usermod -aG docker $RESPOSTA" >&2
-        fi
+read -rp "Deseja adicionar algum usuário ao grupo docker? [s/N] " RESPOSTA
+if [[ "${RESPOSTA,,}" == "s" ]]; then
+    # Sugere o usuário que invocou o script via sudo (se não for root)
+    SUGESTAO=""
+    if [[ "$USUARIO" != "root" ]]; then
+        SUGESTAO="$USUARIO"
+    fi
+
+    if [[ -n "$SUGESTAO" ]]; then
+        read -rp "Qual usuário? [$SUGESTAO]: " NOME
+        NOME="${NOME:-$SUGESTAO}"
+    else
+        read -rp "Qual usuário? " NOME
+    fi
+
+    if [[ -z "$NOME" || "$NOME" == "root" ]]; then
+        echo "Aviso: nenhum usuário válido informado; ninguém foi adicionado ao grupo docker." >&2
+    elif id "$NOME" >/dev/null 2>&1; then
+        USUARIO_DOCKER="$NOME"
+    else
+        echo "Aviso: usuário '$NOME' não existe; ninguém foi adicionado ao grupo docker." >&2
+        echo "       Depois de criá-lo, rode: sudo usermod -aG docker $NOME" >&2
     fi
 fi
 
